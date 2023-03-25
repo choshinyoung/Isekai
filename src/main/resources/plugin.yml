@@ -3,7 +3,3 @@ version: '${project.version}'
 main: org.choshinyoung.isekai.Isekai
 api-version: 1.19
 load: STARTUP
-commands:
-  trace:
-    description: 몰?루
-    usage: /trace <x> <z>

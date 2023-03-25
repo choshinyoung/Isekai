@@ -16,7 +16,7 @@ public class IsekaiBiomeProvider extends BiomeProvider {
 
     @Override
     public @NotNull Biome getBiome(@NotNull WorldInfo worldInfo, int x, int y, int z) {
-        int height = IsekaiChunkGenerator.getHeight(x, z);
+        int height = IsekaiChunkGenerator.getHeight(worldInfo, x, z);
 
         if (height - y < 10 && height < IsekaiChunkGenerator.MAX_SEA_LEVEL) {
             return Biome.RIVER;

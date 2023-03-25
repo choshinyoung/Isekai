@@ -23,8 +23,8 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
     public static final int DATA_SIZE = 3601;
     public static final double SCALE = 30.8633712858;
 
-    public static final int DEFAULT_SEA_LEVEL = 59;
-    public static final int MAX_SEA_LEVEL = DEFAULT_SEA_LEVEL + 3;
+    public static final int MIN_SEA_LEVEL = 60;
+    public static final int MAX_SEA_LEVEL = 64;
 
     public static Map<Pair<Integer, Integer>, int[][]> Elevation = new HashMap<>();
 
@@ -70,7 +70,7 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
 
     @Override
     public int getBaseHeight(@NotNull WorldInfo worldInfo, @NotNull Random random, int x, int z, @NotNull HeightMap heightMap) {
-        return Math.min(getHeight(x, Math.abs(z)) + DEFAULT_SEA_LEVEL, 1900);
+        return getHeight(worldInfo, x, z);
     }
 
     @Override
@@ -80,13 +80,13 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
                 int worldX = chunkX * 16 + x;
                 int worldZ = Math.abs(chunkZ * 16 + z);
 
-                int height = Math.min(getHeight(worldX, worldZ) + DEFAULT_SEA_LEVEL, 1900);
+                int height = getHeight(worldInfo, worldX, worldZ);
 
                 for (int y = worldInfo.getMinHeight(); y <= height; y++) {
                     chunkData.setBlock(x, y, z, Material.STONE);
                 }
 
-                if (height <= MAX_SEA_LEVEL) {
+                if (height < MAX_SEA_LEVEL) {
                     for (int y = height; y <= MAX_SEA_LEVEL; y++) {
                         chunkData.setBlock(x, y, z, Material.WATER);
                     }
@@ -142,32 +142,28 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
         String latitude = json.getString("latitude");
         String longitude = json.getString("longitude");
 
-        int direction = 0;
+        int latitudeCoordinate = Integer.parseInt(latitude.substring(1));
+        int longitudeCoordinate = Integer.parseInt(longitude.substring(1));
 
-        if (latitude.startsWith("N")) {
-            direction |= IsekaiCoordinate.DIRECTION_NORTH;
-        }
-        else if (latitude.startsWith("S")) {
-            direction |= IsekaiCoordinate.DIRECTION_SOUTH;
-        }
-
-        if (longitude.startsWith("E")) {
-            direction |= IsekaiCoordinate.DIRECTION_EAST;
+        if (latitude.startsWith("S")) {
+            latitudeCoordinate *= -1;
         }
         else if (longitude.startsWith("W")) {
-            direction |= IsekaiCoordinate.DIRECTION_WEST;
+            longitudeCoordinate *= -1;
         }
 
-        return new IsekaiCoordinate(direction, Integer.parseInt(latitude.substring(1)), Integer.parseInt(longitude.substring(1)));
+        return new IsekaiCoordinate(latitudeCoordinate, longitudeCoordinate);
     }
 
     public static IsekaiCoordinate positionToIsekaiCoordinate(double x, double z) {
-        // TODO: implement for south latitude and west longitude
-
-        return new IsekaiCoordinate(IsekaiCoordinate.DIRECTION_NORTH & IsekaiCoordinate.DIRECTION_EAST, z / (DATA_SIZE * SCALE), x / (DATA_SIZE * SCALE));
+        return new IsekaiCoordinate(z / (DATA_SIZE * SCALE), x / (DATA_SIZE * SCALE));
     }
 
-    public static int getHeight(int x, int z) {
+    public static int getHeight(WorldInfo worldInfo, int x, int z) {
+        return Math.min(calculateHeight(x, z) + MIN_SEA_LEVEL, worldInfo.getMaxHeight() - 1);
+    }
+
+    public static int calculateHeight(int x, int z) {
         IsekaiCoordinate coordinate = positionToIsekaiCoordinate(x, z);
 
         int xFloor = (int)Math.round(((x - (x % SCALE)) / SCALE) % DATA_SIZE);
@@ -179,8 +175,6 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
         double xRelative = (x % SCALE) / SCALE;
         double zRelative = (z % SCALE) / SCALE;
 
-        // TODO: implement for border of blocks
-
         int a = getRawHeight((int)coordinate.latitude, (int)coordinate.longitude, xFloor, zFloor);
         int b = getRawHeight((int)coordinate.latitude, (int)coordinate.longitude, xCeil, zFloor);
         int c = getRawHeight((int)coordinate.latitude, (int)coordinate.longitude, xFloor, zCeil);
@@ -188,10 +182,6 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
 
         double left = a * (1 - xRelative) + b * xRelative;
         double right = c * (1 - xRelative) + d * xRelative;
-
-//        if (coordinate.latitude <= 1 && coordinate.longitude <= 1 && coordinate.latitude > 0 && coordinate.longitude > 0) {
-//            plugin.getLogger().info(coordinate.longitude + ", " + coordinate.latitude + " : " + xRelative + " " + zRelative + " - " + (int)((left * (1 - zRelative)) + right * zRelative));
-//        }
 
         return (int)Math.round((left * (1 - zRelative)) + right * zRelative);
     }
