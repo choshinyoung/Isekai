@@ -3,6 +3,7 @@ package org.choshinyoung.isekai;
 import com.google.common.io.ByteStreams;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.bukkit.HeightMap;
 import org.bukkit.Material;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
@@ -22,8 +23,8 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
     public static final int DATA_SIZE = 3601;
     public static final double SCALE = 30.8633712858;
 
-//    public static final int DATA_SIZE = 6;
-//    public static final double SCALE = 5;
+    public static final int DEFAULT_SEA_LEVEL = 59;
+    public static final int MAX_SEA_LEVEL = DEFAULT_SEA_LEVEL + 3;
 
     public static Map<Pair<Integer, Integer>, int[][]> Elevation = new HashMap<>();
 
@@ -35,6 +36,63 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
         plugin = _plugin;
 
         readData();
+    }
+
+    @Override
+    public boolean shouldGenerateNoise() {
+        return false;
+    }
+
+    @Override
+    public boolean shouldGenerateSurface() {
+        return true;
+    }
+
+    @Override
+    public boolean shouldGenerateCaves() {
+        return true;
+    }
+
+    @Override
+    public boolean shouldGenerateMobs() {
+        return true;
+    }
+
+    @Override
+    public boolean shouldGenerateDecorations() {
+        return true;
+    }
+
+    @Override
+    public boolean shouldGenerateStructures() {
+        return true;
+    }
+
+    @Override
+    public int getBaseHeight(@NotNull WorldInfo worldInfo, @NotNull Random random, int x, int z, @NotNull HeightMap heightMap) {
+        return Math.min(getHeight(x, Math.abs(z)) + DEFAULT_SEA_LEVEL, 1900);
+    }
+
+    @Override
+    public void generateNoise(@NotNull WorldInfo worldInfo, @NotNull Random random, int chunkX, int chunkZ, @NotNull ChunkData chunkData) {
+        for(int x = 0; x < 16; x++) {
+            for(int z = 0; z < 16; z++) {
+                int worldX = chunkX * 16 + x;
+                int worldZ = Math.abs(chunkZ * 16 + z);
+
+                int height = Math.min(getHeight(worldX, worldZ) + DEFAULT_SEA_LEVEL, 1900);
+
+                for (int y = worldInfo.getMinHeight(); y <= height; y++) {
+                    chunkData.setBlock(x, y, z, Material.STONE);
+                }
+
+                if (height <= MAX_SEA_LEVEL) {
+                    for (int y = height; y <= MAX_SEA_LEVEL; y++) {
+                        chunkData.setBlock(x, y, z, Material.WATER);
+                    }
+                }
+            }
+        }
     }
 
     private void readData() {
@@ -109,25 +167,6 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
         return new IsekaiCoordinate(IsekaiCoordinate.DIRECTION_NORTH & IsekaiCoordinate.DIRECTION_EAST, z / (DATA_SIZE * SCALE), x / (DATA_SIZE * SCALE));
     }
 
-    @Override
-    public void generateNoise(@NotNull WorldInfo worldInfo, @NotNull Random random, int chunkX, int chunkZ, @NotNull ChunkData chunkData) {
-        for(int x = 0; x < 16; x++) {
-            for(int z = 0; z < 16; z++) {
-                int worldX = chunkX * 16 + x;
-                int worldZ = Math.abs(chunkZ * 16 + z);
-
-                int height = getHeight(worldX, worldZ);
-
-                if (height <= 5) {
-                    chunkData.setBlock(x, 5, z, Material.WATER);
-                }
-                else {
-                    chunkData.setBlock(x, height, z, Material.GRASS_BLOCK);
-                }
-            }
-        }
-    }
-
     public static int getHeight(int x, int z) {
         IsekaiCoordinate coordinate = positionToIsekaiCoordinate(x, z);
 
@@ -181,7 +220,7 @@ public class IsekaiChunkGenerator extends ChunkGenerator {
             return 0;
         }
 
-        return Math.min(Elevation.get(key)[dataZ][dataX], 1967);
+        return Elevation.get(key)[dataZ][dataX];
     }
 
     public static Pair<Integer, Integer> FindElevationKey(int latitude, int longitude) {
